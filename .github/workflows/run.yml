@@ -1,0 +1,31 @@
+name: run-backtest
+on:
+  workflow_dispatch:
+    inputs:
+      csv_urls:
+        description: "URL dei CSV separati da spazio"
+        default: "https://www.football-data.co.uk/mmz4281/2122/I1.csv https://www.football-data.co.uk/mmz4281/2223/I1.csv https://www.football-data.co.uk/mmz4281/2324/I1.csv"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Backtest
+        run: python betting_backtest.py --csv ${{ inputs.csv_urls }} | tee backtest.txt
+      - name: Detector (prima URL)
+        run: python fixing_detector.py --csv $(echo "${{ inputs.csv_urls }}" | cut -d' ' -f1) | tee detector.txt
+      - name: Riepilogo nel job summary
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat backtest.txt detector.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: risultati
+          path: "*.txt"
